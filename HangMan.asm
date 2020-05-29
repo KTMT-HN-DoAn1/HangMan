@@ -8,9 +8,12 @@
 	tb7:.asciiz "\n========\n|/    |\n|     O\n|    /|\\\n|    / \\\n|\n|"
 	tb8:.asciiz "\nVi tri xuat hien la: "
 	tb9:.asciiz "\n Nhap vao ky tu ban nghi la co: "
+	tb10:.asciiz "\nDap an cua ban la: "
 	line:.asciiz "==========\n"
 	remind:.asciiz "\n Chua chinh xac. Can than hon nhe!"
-	printmark:.asciiz "\n| Diem cua ban la: "
+	printmark:.asciiz "\n| Diem vong choi nay cua ban la: "
+	printtotal:.asciiz "\nTong diem cua ban la: "
+	newgame:.asciiz "\nNEW GAME\n"
 	gameover:.asciiz "\n================\n|   THUA CUOC   |\n================\n"
 	wingame:.asciiz "\n================\n|  CHIEN THANG  |\n================\n"
 	endgame:.asciiz "\n1.Choi lai\n2. Dung lai.\n"
@@ -24,19 +27,25 @@
 	markarr :.space 10
 	guess_arr:.space 2
 	score:.word 0
-	
+	totalscore:.word 0
 .text
 	
 	
 Begin:
+	li $v0,4
+	la $a0,newgame
+	syscall 
+
 	#gan diem toi da la 1000 diem
 	li $a0,1000
 	sw $a0,score
-
+	li $a0,0
+	sw $a0,doansai
+	
 	# Doc file --> random --> cat chuoi --> ra de
 	
 	#Nhap vao chuoi str
-	li $v0,8
+	li $v0,8                                           
 	la $a0,str
 	li $a1,50
 	syscall
@@ -72,13 +81,22 @@ LoseGame:
 	li $v0,4
 	la $a0,gameover
 	syscall
-	j PrintResult
+	
+	#in ra tong cong diem cua nguoi choi qua cac man choi
+	li $v0,4
+	la $a0, printtotal	
+	syscall 
+	li $v0,1
+	lw $a0,totalscore
+	syscall 
 Wingame:
 	li $v0,4
 	la $a0,wingame
 	syscall
-
-	j PrintResult
+	lw $a0,score
+	lw $a1,doansai
+	jal PrintResult
+	j Begin
 Continue:
 	#Xuat thong bao lua chon
 	li $v0,4
@@ -97,33 +115,7 @@ Continue:
 	#li $a1,10
 	#syscall 
 	#addi $a0,$a0,1
-PrintResult:
-	
-	#Tinh toan diem cua nguoi choi
-	lw $t0,score
-	lw $t1,doansai
-	li $t4,100
-	mul $t2,$t1,$t4
-	sub $t0,$t0,$t2
-	li $t3 2
-	ble $t1,$t3,BonusMark
-	j PrintResult.Continue
-	BonusMark:
-		li $t4,2
-		mul $t0,$t0,$t4
-	PrintResult.Continue:
-	#in ra diem cua nguoi choi
-	li $v0,4
-	la $a0,printmark
-	syscall 
-	li $v0,1
-	move $a0,$t0
-	syscall 
-	sw $t0,score
-	# in ra danh sach 10 nguoi choi cos diem cao nhat	
-	
 
-	j EndGame #ket thuc game ... dua nguoi choi toi phan chon choi tiep hay ngung choi
 End:
 	
 	#Ket thuc chuong trinh
@@ -162,17 +154,26 @@ AChar:
 		jal _Thongbao
 		j MainLoop
 WholeWord:
+	#Xuat thong bao nhap chuoi doan
+	li $v0,4
+	la $a0,tb10
+	syscall
+	
 	#Nhap vao chuoi str_compare
 	li $v0,8
 	la $a0,str_compare
 	li $a1,50
 	syscall
-		
+	
+	#so khop hai chuoi	
 	#truyen tham so 
 	la $a0,str
 	la $a1,str_compare
+	la $a3,check
 	jal _StringCompare
-	j PrintResult #in diem va ca danh sach ky luc (top 10)
+	lw $a0, check
+	beq $a0,1,Wingame
+	j LoseGame 
 EndGame:
 	li $v0,4
 	la $a0,endgame
@@ -223,6 +224,55 @@ Error7:
 	la $a0,tb7
 	syscall
 	j _Thongbao.end
+#===========HAM IN KET QUA ============
+PrintResult:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $s2,12($sp)
+	sw $s3,16($sp)
+	sw $t0,20($sp)
+	sw $t1,24($sp)
+	sw $t2,28($sp)
+	
+	#Luu tham so vao thanh ghi
+	move $s0,$a0 #score
+	move $s1,$a1 #doansai
+	#Tinh toan diem cua nguoi choi
+	li $t4,100
+	mul $t2,$s1,$t4
+	sub $s0,$s0,$t2
+	ble $s1,$t3,BonusMark
+	j PrintResult.Continue
+	BonusMark:
+		li $t4,2
+		mul $s0,$s0,$t4
+	PrintResult.Continue:
+	#in ra diem cua nguoi choi
+	li $v0,4
+	la $a0,printmark
+	syscall 
+	li $v0,1#$a0<--score
+	move $a0,$s0
+	syscall 
+
+#cuoi thu tuc
+	#restorE
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $s2,12($sp)
+	lw $s3,16($sp)
+	lw $t0,20($sp)
+	lw $t1,24($sp)
+	lw $t2,28($sp)
+	#xoa stack
+	add $sp,$sp,32
+	#tra VE
+	jr $ra	
 	
 #============== KIEM TRA MANG DANH DAU ===============
 _CheckWin:
@@ -410,10 +460,13 @@ _StringCompare:
 	sw $s1,8($sp)
 	sw $s2,12($sp)
 	sw $s3,16($sp)
-	
+	sw $t0,20($sp)
+	sw $t1,24($sp)
+	li $t1,0
 	#Luu tham so vao thanh ghi
 	move $s0,$a0
 	move $s1,$a1
+	move $t0,$a3
 #than thu tuc
 _StringCompare.Loop:
 	lb $s2,($s0)
@@ -431,14 +484,11 @@ _ProcessRestString2:
 #_ProcessRestString1
 _StringNotSame:
 	#Xuat thong bao chuoi khong giong nhau va? thua cuoc
-	li $v0,4
-	la $a0,gameover
-	syscall 
+	sw $t1,($t0)
 	j _StringCompare.EndLoop
 _StringSame:
-	li $v0,4
-	la $a0,wingame
-	syscall 
+	li $t1,1
+	sw $t1,($t0)
 	j _StringCompare.EndLoop
 _StringCompare.EndLoop:
 	
@@ -449,6 +499,8 @@ _StringCompare.EndLoop:
 	lw $s1,8($sp)
 	lw $s2,12($sp)
 	lw $s3,16($sp)
+	lw $t0,20($sp)
+	lw $t1,24($sp)
 	#Xia stack
 	addi $sp,$sp,32
 	#tra ve
