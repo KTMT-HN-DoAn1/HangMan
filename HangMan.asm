@@ -18,18 +18,27 @@
 	wingame:.asciiz "\n================\n|  CHIEN THANG  |\n================\n"
 	endgame:.asciiz "\n1.Choi lai\n2. Dung lai.\n"
 	menu1:.asciiz "\n=================\n| Tiep tuc doan |\n=================\n| 1. Mot ky tu. |\n| 2. Ca tu.     |\n| 0. Exit.      |\n=================\nChon: "
-	fin: .asciiz "D:\[19-20]_HK2\KTMT&HN\Code\dethi.txt"
+	fin: .asciiz "input.txt"
+
 	n:.word 0
 	check:.word 0
 	doansai:.word 0
-	str:.space 50
+	score:.word 0
+	totalscore:.word 0
+	nword:.word 0
+	
+	Length :.word 0
+	SLTu: .word 0
+	Random: .word 0
+	Vitri: .word 0
+
 	str_compare:.space 50
 	markarr :.space 10
 	guess_arr:.space 2
-	score:.word 0
-	totalscore:.word 0
+
+	str: .space 2000
+	CauHoi: .space 50
 .text
-	
 	
 Begin:
 	li $v0,4
@@ -44,15 +53,88 @@ Begin:
 	
 	# Doc file --> random --> cat chuoi --> ra de
 	
-	#Nhap vao chuoi str
-	li $v0,8                                           
-	la $a0,str
-	li $a1,50
+		#openfile
+	li $v0,13
+	la $a0,fin
+	li $a1,0
+	li $a2,0
 	syscall
+	#Luu dia chi file vao $s0
+	move $s0,$v0
+	#Doc file
+	li $v0,14
+	move $a0,$s0
+	la $a1,str
+	li $a2,2000
+	syscall
+#str se luu chuoi duoc doc tu file
 
-	la $a0,str
-	la $a1,n
-	jal _S.length
+	#Truyen tham so cho ham tinh do dai chuoi
+	la $a0, str
+	la $a1, n
+	#Goi ham tinh do dai chuoi
+	jal _S.lengthh
+	#Lay kq tra ve
+	lw $t0,($a1)
+	sw $t0, Length
+	#Length se luu do dai chuoi doc duoc
+	
+
+
+	#Truyen tham so cho ham tinh so luong tu
+	la $a0, str
+	la $a1, n
+	#Goi ham tinh so luong tu
+	jal _S.Tu
+	#Lay so luong tu tra ve
+	lw $t0,($a1)
+	sw $t0, SLTu
+#SLTu se luu so luong tu trong str
+
+
+
+	#Load SLTu vao $s0
+	lw $s0,SLTu
+	#Random
+	li $v0,42
+	move $a1,$s0
+	syscall
+	#Chuyen so vua duoc random vao $s1
+	move $s1,$a0
+	#Cong 1 de tru truong hop random = 0
+	addi $s1,$s1,1
+	#Store gia tri cua random vao Random
+	sw $s1,Random
+#Random se luu thu tu cua tu duoc random
+
+
+
+	#Truyen tham so cho ham tinh vi tri cua dau * ma duoc random
+	la $a0, str
+	la $a1, Vitri
+	lw $a2, Random
+	#Goi ham tinh vi tri cua dau * ma duoc random
+	jal _S.Vitri
+	#Lay so luong tu tra ve
+	lw $t0,($a1)
+	sw $t0, Vitri
+#Vitri se luu vi tri dau * ngay tai vi tri tu duoc random
+
+
+
+	#Truyen tham so cho ham Strcpy
+	la $a0, str
+	la $a1, CauHoi
+	lw $a2, Vitri
+	lw $a3,Length
+	#Goi ham _S.Copy
+	jal _S.Copy
+	#Lay CauHoi tra ve
+	
+	
+	li $v0,4
+	la $a0,CauHoi
+	syscall
 	
 MainLoop:
 
@@ -60,7 +142,7 @@ MainLoop:
 	la $a0,line
 	syscall
 	#XUat chuoi co *
-	la $a0,str
+	la $a0,CauHoi
 	la $a1,markarr
 	jal _printStr
 	li $v0,4
@@ -89,10 +171,15 @@ LoseGame:
 	li $v0,1
 	lw $a0,totalscore
 	syscall 
+	j EndGame
 Wingame:
 	li $v0,4
 	la $a0,wingame
 	syscall
+
+	lw $a0,nword 
+	addi $a0,$a0,1
+	sw $a0,nword 
 	lw $a0,score
 	lw $a1,doansai
 	jal PrintResult
@@ -140,11 +227,12 @@ AChar:
 	syscall
 	
 	lw $t3,doansai
-	la $a0,str
+	la $a0,CauHoi
 	
 	la $a2,markarr
 	la $a3,doansai  
 	jal _CheckExistChar
+
 	lw $t4,doansai
 	sub $t3,$t4,$t3
 	bgt $t3,0, PrintNotifError 
@@ -167,7 +255,7 @@ WholeWord:
 	
 	#so khop hai chuoi	
 	#truyen tham so 
-	la $a0,str
+	la $a0,CauHoi
 	la $a1,str_compare
 	la $a3,check
 	jal _StringCompare
@@ -224,6 +312,192 @@ Error7:
 	la $a0,tb7
 	syscall
 	j _Thongbao.end
+
+#============= TINH CHIEU DAI CHUOI ===================
+#Doi so truyen vao la chuoi can tinh do dai va so n
+_S.lengthh:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $s2,12($sp)
+	sw $s3,16($sp)
+	sw $t0, 20($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #str
+	move $s1, $a1#n	
+	#Khoi tao vong lap
+	li $t0,0
+#than thu tuc:
+	_S.lengthh.Loop:
+		lb $s2,($s0)
+		addi $t0,$t0,1
+		addi $s0,$s0,1
+		bne $s2,'\n',_S.lengthh.Loop
+
+	addi $t0,$t0,-2
+	sw $t0,($s1)
+#cuoi thu tuc
+	#restore 
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $s2,12($sp)
+	lw $s3,16($sp)
+	lw $t0, 20($sp)
+	#Xia stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
+
+
+
+
+#============= DEM SO TU ===================
+#Doi so truyen vao la chuoi can tinh do dai va so n
+_S.Tu:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $s2,12($sp)
+	sw $s3,16($sp)
+	sw $t0, 20($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #str
+	move $s1, $a1 #n	
+	#Khoi tao vong lap
+	li $t0,0
+#than thu tuc:
+_S.Tu.Loop:
+	lb $s2,($s0)
+	beq $s2,'*',_S.Tu.TangTu
+	j _S.Tu.Tangi
+_S.Tu.TangTu:
+	addi $t0,$t0,1
+_S.Tu.Tangi:
+	addi $s0,$s0,1
+	bne $s2,'\n',_S.Tu.Loop
+
+	sw $t0,($s1)
+#cuoi thu tuc
+	#restore 
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $s2,12($sp)
+	lw $s3,16($sp)
+	lw $t0, 20($sp)
+	#Xia stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
+	
+#============= VI TRI DAU * ===================
+#Doi so truyen vao la chuoi can tinh do dai, so n va so random
+_S.Vitri:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $s2,12($sp)
+	sw $s3,16($sp)
+	sw $s4, 20($sp)
+	sw $t0,24($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #str
+	move $s1, $a1 #Vitri
+	move $s4, $a2 #Random	
+	#Khoi tao vong lap
+	li $t0,0
+	li $s3,0
+#than thu tuc:
+_S.Vitri.Loop:
+	lb $s2,($s0)
+	beq $s2,'*',_S.Vitri.TangSao
+	j _S.Vitri.Tangi
+_S.Vitri.TangSao:
+	addi $t0,$t0,1
+_S.Vitri.Tangi:
+	addi $s0,$s0,1
+	addi $s3,$s3,1
+	bne $t0,$s4,_S.Vitri.Loop
+	
+	sw $s3,($s1)
+#cuoi thu tuc
+	#restore 
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $s2,12($sp)
+	lw $s3,16($sp)
+	lw $s4,20($sp)
+	lw $t0,24($sp)
+	#Xia stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
+
+#============= STRING COPY ===================
+#Doi so truyen vao la chuoi str, chuoi chua cau hoi va vi tri dau *
+_S.Copy:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $s2,12($sp)
+	sw $s3,16($sp)
+	sw $s4,20($sp)
+	sw $t0,24($sp)
+	sw $t1,28($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #str
+	move $s1, $a1 #CauHoi
+	move $s2, $a2 #Vitri
+	move $s3, $a3 #Length
+	#Khoi tao vong lap
+	add $s0,$s0,$s2
+	li $t0,1
+#than thu tuc:
+_S.Copy.Loop:
+	lb $s4,($s0)
+	sb $s4,($a1)
+	
+	addi $s0,$s0,1
+	addi $a1,$a1,1
+	lb $s4,($s0)
+	
+	addi $t0,$t0,1
+	bne $t0,$s3,_S.Copy.Check
+	j _Scopy.End
+_S.Copy.Check:
+	bne $s4,'*',_S.Copy.Loop
+	j _Scopy.End
+		
+#cuoi thu tuc
+	#restore 
+_Scopy.End:
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $s2,12($sp)
+	lw $s3,16($sp)
+	lw $s4, 20($sp)
+	lw $t0,24($sp)
+	lw $t1,28($sp)
+	#Xia stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
+
 #===========HAM IN KET QUA ============
 PrintResult:
 #dau thu tuc
@@ -347,7 +621,7 @@ _printStr:
 		addi $s0,$s0,1
 		addi $s1,$s1,1
 		lb $s2,($s0)
-		bne $s2,'\n',_printStr.Loop
+		bne $s2,'\0',_printStr.Loop
 		j printChar.EndLoop
 		_printChar:
 			li $v0,11
@@ -464,23 +738,26 @@ _StringCompare:
 	sw $t1,24($sp)
 	li $t1,0
 	#Luu tham so vao thanh ghi
-	move $s0,$a0
-	move $s1,$a1
-	move $t0,$a3
+	move $s0,$a0 #chuoi de thi
+	move $s1,$a1 #chuoi nguoi choi nhap vao
+	move $t0,$a3 #bien check (Neu trung nhau thi check bang 1)
 #than thu tuc
 _StringCompare.Loop:
-	lb $s2,($s0)
+	#Doc lan luot cac ky tu tuong ung tren ca 2 chuoi
+	lb $s2,($s0) 
 	lb $s3,($s1)
-	bne $s2,$s3,_StringNotSame
+	bne $s2,$s3,_StringNotSame # so sanh neu khong trung thi tra ve 0
 _StringCompare.Increase:
+	#tang dia chi cua ca 2 chuoi
 	addi $s1,$s1,1
 	addi $s0,$s0,1
-	beq $s2,'\n',_ProcessRestString2
+	lb $s2,($s0) 
+	lb $s3,($s1)
+	beq $s2,'\0',_ProcessRestString2 # Neu chuoi de thi gap ky tu ket thuc truoc thi ng?ng lap
 	
 	j _StringCompare.Loop
 _ProcessRestString2:
-	beq $s3,'\n',_StringSame
-	j _StringCompare.EndLoop
+	beq $s3,10,_StringSame
 #_ProcessRestString1
 _StringNotSame:
 	#Xuat thong bao chuoi khong giong nhau va? thua cuoc
@@ -542,7 +819,7 @@ _CheckExistChar:
 	_CheckExistChar.Loop.Continue:
 		addi $t0,$t0,1
 		addi $s0,$s0,1
-		bne $t1,'\n',_CheckExistChar.Loop
+		bne $t1,'\0',_CheckExistChar.Loop
 		j _CheckExistChar.EndLoop
 	_CheckExistChar.Exist:
 		addi $t3,$t3,1
