@@ -135,7 +135,9 @@ Begin:
 	li $v0,4
 	la $a0,CauHoi
 	syscall
-	
+	li $v0,11
+	la $a0,'\n'
+	syscall 
 MainLoop:
 
 	li $v0,4
@@ -154,12 +156,14 @@ MainLoop:
 	lw $a1,n
 	la $a2,check
 	jal _CheckWin
-	lb $a2,check
-	bne $a2,0,Wingame
-	lw $a2,doansai 
-	bge $a2,7,LoseGame
+
+	lb $a2,check #doc gia tri bien check
+	bne $a2,0,Wingame #Neu khac khong thi thang game
+	lw $a2,doansai #doc gia tri so lan doan sai tu bien doansai
+	bge $a2,7,LoseGame #neu so lan doan sai >= 7 thi thua cuoc
 	j Continue
 LoseGame:
+	#in thong bao THUA CUOC
 	li $v0,4
 	la $a0,gameover
 	syscall
@@ -171,18 +175,22 @@ LoseGame:
 	li $v0,1
 	lw $a0,totalscore
 	syscall 
-	j EndGame
+	j EndGame  #Nhay den --> hoi nguoi choi: Choi lai hay Dung.
 Wingame:
+	#in thongbao thang gamme
 	li $v0,4
 	la $a0,wingame
 	syscall
-
+	
+	#moi lan thang --> tang so tu doan duoc len 1
 	lw $a0,nword 
-	addi $a0,$a0,1
+	addi $a0,$a0,1 #nword = nword +1
 	sw $a0,nword 
-	lw $a0,score
-	lw $a1,doansai
-	jal PrintResult
+	
+	#truyen tham so vao ham in diem
+	lw $a0,score #truyen diem
+	lw $a1,doansai#truyen so lan doan sai
+	jal PrintResult #goi ham
 	j Begin
 Continue:
 	#Xuat thong bao lua chon
@@ -190,18 +198,13 @@ Continue:
 	la $a0,menu1
 	syscall 
 	
-	li $v0,5
+	li $v0,5 #lay  lenh nhap tu ban phim
 	syscall 
+	
 	move $s0,$v0
-	beq $s0,1, AChar
-	beq $s0,2,WholeWord
-	beq $s0,0, End
-
-	#lay random tu 0 - 10
-	#li $v0,42
-	#li $a1,10
-	#syscall 
-	#addi $a0,$a0,1
+	beq $s0,1, AChar #lenh =1 --> Aword
+	beq $s0,2,WholeWord#lenh =2 --> wholeWord
+	beq $s0,0, End #lenh =0 --> thoat Game
 
 End:
 	
@@ -226,20 +229,20 @@ AChar:
 	la $a0,'\n'
 	syscall
 	
-	lw $t3,doansai
+	lw $t3,doansai #lay so lan doan sai truoc khi doan lan tiep theo
 	la $a0,CauHoi
-	
 	la $a2,markarr
 	la $a3,doansai  
 	jal _CheckExistChar
-
-	lw $t4,doansai
-	sub $t3,$t4,$t3
-	bgt $t3,0, PrintNotifError 
+	
+	
+	lw $t4,doansai#lay so lan doan sai sau khi da doan
+	sub $t3,$t4,$t3 #tinh hieu $t3 va $t4
+	bgt $t3,0, PrintNotifError #neu $t4 - $t3 >0 thi nguoi dung da doan sai
 	j MainLoop
 	PrintNotifError:
-		move $a0,$t4
-		jal _Thongbao
+		move $a0,$t4 #truyen do lan da doan sai
+		jal _Thongbao#goi ham in thong bao sai tuong ung
 		j MainLoop
 WholeWord:
 	#Xuat thong bao nhap chuoi doan
@@ -258,16 +261,20 @@ WholeWord:
 	la $a0,CauHoi
 	la $a1,str_compare
 	la $a3,check
-	jal _StringCompare
-	lw $a0, check
-	beq $a0,1,Wingame
+	jal _StringCompare #goi ham so sanh hai chuoi
+	lw $a0, check #doc gia tri tu bien check
+	beq $a0,1,Wingame #neu bang 1 thi? CHIEN THANG 
 	j LoseGame 
 EndGame:
+	#in thong bao hoi nguoi choi co tiep tuc choi hay dung lai
 	li $v0,4
 	la $a0,endgame
 	syscall
+	
+	#lay lenh la so nguyen duoc nhap tu nguoi choi
 	li $v0,5
 	syscall
+	#so sanh lenh nhap vao va di den Lenh tuong ung
 	beq $v0,1,Begin
 	beq $v0,2,End
 Error1:
@@ -332,10 +339,10 @@ _S.lengthh:
 	li $t0,0
 #than thu tuc:
 	_S.lengthh.Loop:
-		lb $s2,($s0)
-		addi $t0,$t0,1
-		addi $s0,$s0,1
-		bne $s2,'\n',_S.lengthh.Loop
+		lb $s2,($s0) #lay s[i]
+		addi $t0,$t0,1 #tang bien dem 
+		addi $s0,$s0,1 #tang dia chi
+		bne $s2,'\n',_S.lengthh.Loop 
 
 	addi $t0,$t0,-2
 	sw $t0,($s1)
@@ -516,14 +523,14 @@ PrintResult:
 	move $s0,$a0 #score
 	move $s1,$a1 #doansai
 	#Tinh toan diem cua nguoi choi
-	li $t4,100
-	mul $t2,$s1,$t4
-	sub $s0,$s0,$t2
+	li $t4,100 
+	mul $t2,$s1,$t4 #so diem bi mat di 
+	sub $s0,$s0,$t2 #tong diem = tong diem - diem_mat_di
 	ble $s1,$t3,BonusMark
 	j PrintResult.Continue
 	BonusMark:
 		li $t4,2
-		mul $s0,$s0,$t4
+		mul $s0,$s0,$t4 #tong diem =  tong diem x 2
 	PrintResult.Continue:
 	#in ra diem cua nguoi choi
 	li $v0,4
@@ -571,15 +578,17 @@ _CheckWin:
 	#Khoi toa vong lap voi bien dem $t0
 	li $t0,1
 	_CheckWin.Loop:
-		lb $s3,4($s0)
-		beq $s3,0,NotWin
+		lb $s3,4($s0) #doc tung gia tri cua mang markarr len
+		beq $s3,0,NotWin #neu van con phan tu bang 0 --> chua doan dung het cac ky tu
 	_CheckWin.Inc:
+		#tang dia chi va tang bien diem
 		addi $s0,$s0,1
 		addi $t0,$t0,1
+		#Kiem tra dieu kien dung
 		ble $t0,$s1,_CheckWin.Loop
 		j _CheckWin.EndLoop
 	NotWin:
-		li $t0,0
+		li $t0,0 #neu chua chien thang thi check = 0
 	_CheckWin.EndLoop:
 	sb $t0,($s2)
 #cuoi thu tuc
@@ -613,15 +622,15 @@ _printStr:
 #than thu tuc
 
 	_printStr.Loop:
-		lb $s2,($s0)
-		lb $s3,4($s1)
-		beq $s3,1,_printChar
-		j _printStar
+		lb $s2,($s0)#lay str[i]
+		lb $s3,4($s1)#lay markarr[i] 
+		beq $s3,1,_printChar # Neu  markarr[i] =1 thi in str[i] 
+		j _printStar#Nguoc lai thi in '*'
 	_printChar.Continue:
-		addi $s0,$s0,1
-		addi $s1,$s1,1
-		lb $s2,($s0)
-		bne $s2,'\0',_printStr.Loop
+		addi $s0,$s0,1#tang dia chi
+		addi $s1,$s1,1#tang bien dem
+		lb $s2,($s0)#doc str[i]
+		bne $s2,'\0',_printStr.Loop#kiem tra dieu kien dung
 		j printChar.EndLoop
 		_printChar:
 			li $v0,11
@@ -634,6 +643,7 @@ _printStr:
 			syscall 
 			j _printChar.Continue
 	printChar.EndLoop:
+		#in dau xuong dong
 		li $v0,11
 		la $a0,'\n'
 		syscall 
@@ -751,7 +761,7 @@ _StringCompare.Increase:
 	#tang dia chi cua ca 2 chuoi
 	addi $s1,$s1,1
 	addi $s0,$s0,1
-	lb $s2,($s0) 
+	lb $s2,($s0) #doc lai gia tri sau khi tang dia chi
 	lb $s3,($s1)
 	beq $s2,'\0',_ProcessRestString2 # Neu chuoi de thi gap ky tu ket thuc truoc thi ng?ng lap
 	
@@ -764,8 +774,8 @@ _StringNotSame:
 	sw $t1,($t0)
 	j _StringCompare.EndLoop
 _StringSame:
-	li $t1,1
-	sw $t1,($t0)
+	li $t1,1 #gan $t1 =1
+	sw $t1,($t0) #check =1 .
 	j _StringCompare.EndLoop
 _StringCompare.EndLoop:
 	
@@ -807,14 +817,14 @@ _CheckExistChar:
 	move $s3,$a3 #so lan doan sai
 	
 	#Khoi tao bien dem cho vong lap
-	li $t0,0
-	li $t2,1
-	li $t3,0
+	li $t0,0 #bien dem
+	li $t2,1#bien gia tri tra ve mac dinh =1
+	li $t3,0 #bien dem =0
 #than thu tuc
 	#Vong lap so sanh tung ky tu
 	_CheckExistChar.Loop:
-		lb $t1,($s0)
-		beq $s1,$t1,_CheckExistChar.Exist
+		lb $t1,($s0) #doc tung ky tu cua dethi
+		beq $s1,$t1,_CheckExistChar.Exist #kiem tra ky tu vau nhap voi ky tu vua doc duoc : Neu bang thi doa dung
 
 	_CheckExistChar.Loop.Continue:
 		addi $t0,$t0,1
@@ -822,18 +832,18 @@ _CheckExistChar:
 		bne $t1,'\0',_CheckExistChar.Loop
 		j _CheckExistChar.EndLoop
 	_CheckExistChar.Exist:
-		addi $t3,$t3,1
-		add $s2,$s2,$t0
-		sb $t2,4($s2) 
-		sub $s2,$s2,$t0
+		addi $t3,$t3,1 #dem so ky tu doan dung trong 1 lan nhap
+		add $s2,$s2,$t0# nahy den dia chi tuong ung trong mang danh dau 
+		sb $t2,4($s2) #set gia tri 1 cho pahn tu tai vi tri do trong mang danh dau
+		sub $s2,$s2,$t0 #reset lai dia chi ban dau cua mang danh dau.
 		j _CheckExistChar.Loop.Continue
 	_CheckExistChar.EndLoop:
-		beq $t3,0,NotExist
+		beq $t3,0,NotExist #neu $t3 van bang 0 thi co nghia la khong coky tu nao trung khop
 		j _CheckExistChar.EndFunc
 		NotExist:
-			lw $t2,($s3)
-			addi $t3,$t2,1
-			sw $t3,($s3)			
+			lw $t2,($s3) #lay gia tri cua doansai 
+			addi $t3,$t2,1 #tang so lan dooansai len 1
+			sw $t3,($s3)		#luu lai so lan dooansai vao bien
 _CheckExistChar.EndFunc:
 #cuoi thu tuc
 	#restore 
