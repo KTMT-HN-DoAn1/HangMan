@@ -1608,7 +1608,7 @@ _SortDiem.Fin:
 # ===== Ham tra ve thong tin nguoi choi o vi tri i  =====
 _NguoiChoiInfo:
 #Dau Thu Tuc
-	addi $sp, $sp, -32
+	addi $sp, $sp, -36
 	sw $ra, ($sp)
 	sw $s0, 4($sp)
 	sw $t0, 8($sp)
@@ -1682,7 +1682,7 @@ _NguoiChoiInfo.Fin1:
 	lw $s0, 4($sp)
 	lw $ra, ($sp)
 	#Xoa stack
-	addi $sp, $sp, 32
+	addi $sp, $sp, 36
 	#quay ve
 	jr $ra
 
