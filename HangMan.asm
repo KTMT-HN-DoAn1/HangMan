@@ -24,8 +24,10 @@
 	tbName: .asciiz "Ten nguoi choi: "
 	tbName1: .asciiz "Ten hop le"
 	tbName2: .asciiz "Ten k hop le, vui long nhap lai ten: "
+	tbTop10: .asciiz "Top 10 diem cao\n"
 	sao: .asciiz "*"
 	gach: .asciiz "-"
+	spc: .asciiz " "
 
 	nameStr: .space 50
 	
@@ -35,6 +37,8 @@
 	score:.word 0
 	totalscore:.word 0
 	nword:.word 0
+	
+	nScore: .word 0
 	
 	Length :.word 0
 	SLTu: .word 0
@@ -51,6 +55,11 @@
 
 	diem_str: .space 10
 	set_str: .space 10
+
+	indexArr: .space 100
+	foutStr: .space 100
+	scoreArr: .space 100
+	tmpStr: .space 100
 .text
 
 	li $v0,4
@@ -72,6 +81,9 @@
 	syscall
 
 Begin:
+	
+	la $a0, CauHoi
+	jal _ResetString
 
 	#Cong don diem
 	lw $a0, score
@@ -226,16 +238,35 @@ LoseGame:
 
 	#Top 10 highscore
 	#Doc file lay chuoi thong tin cac nguoi choi va tach diem ra mang
-	#la $a0, n
-	#la $a1, str
-	#la $a2, arr
-	#jal _ReadNguoiChoi
+	la $a0, nScore
+	la $a1, foutStr
+	la $a2, scoreArr
+	jal _ReadNguoiChoi
+
 	#Sort diem nguoi choi
-	#la $a0, n
-	#la $a1, arr
-	#la $a2, idArr
-	#jal _SortDiem
-	
+	la $a0, nScore
+	la $a1, scoreArr
+	la $a2, indexArr
+	jal _SortDiem
+
+	#lw $a0, nScore
+	#la $a1, indexArr
+	#jal _XuatMang1
+
+	#In thong bao top 10
+	li $v0,4
+	la $a0, line1	
+	syscall
+	li $v0,4
+	la $a0, tbTop10	
+	syscall  
+
+	#In top 10 diem cao
+	la $a0, indexArr
+	la $a1, foutStr
+	la $a2, tmpStr
+	la $a3, nScore
+	jal _Top10Score
 	
 
 	j EndGame  #Nhay den --> hoi nguoi choi: Choi lai hay Dung.
@@ -382,6 +413,39 @@ Error7:
 	la $a0,tb7
 	syscall
 	j _Thongbao.end
+
+
+#============================ Reset String ================================
+#Doi so truyen vao la chuoi CauHoi
+_ResetString:
+#dau thu tuc
+	#khoi tao stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $t0,12($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #CauHoi
+	li $s1,0
+	#Khoi tao vong lap
+#than thu tuc:
+_ResetString.Loop:
+	sb $s1,($s0)
+	
+	addi $s0,$s0,1
+	lb $t0,($s0)
+	bne $t0,'\0',_ResetString.Loop
+#cuoi thu tuc
+	#restore 
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $t0,12($sp)
+	#Xia stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
 
 #============= TINH CHIEU DAI CHUOI ===================
 #Doi so truyen vao la chuoi can tinh do dai va so n
@@ -1044,8 +1108,8 @@ _XuatMang:
 	sw $t3,20($sp)
 	
 	#Lay tham so luu vao thanh ghi
-	move $s0,$a0
-	move $s1,$a1
+	move $s0,$a0 #n
+	move $s1,$a1 #arr
 	
 	#KHoi tao vong lap
 	li $t0,1
@@ -1056,7 +1120,7 @@ _XuatMang.Lap:
 	move $a0,$t3
 	syscall#Xuat a[i]
 
-	#Xuat khaong trang
+	#Xuat khoang trang
 	li $v0,11
 	la $a0,' '
 	syscall
@@ -1272,9 +1336,9 @@ _ReadNguoiChoi:
 	sw $t4, 40($sp)
 	sw $t5, 44($sp)
 
-	la $s2, ($a0) #dia chi n
-	la $s3, ($a1) #dia chi str
-	la $s4, ($a2) #dia chi arr
+	move $s2, $a0 #dia chi n
+	move $s3, $a1 #dia chi str
+	move $s4, $a2 #dia chi arr
 
 #Than Thu Tuc
 
@@ -1290,11 +1354,9 @@ _ReadNguoiChoi.read:
 	#readfile
 	li $v0, 14
 	move $a0, $s0
-	la $a1, ($s3)
+	move $a1, $s3
 	li $a2, 400
 	syscall
-
-	addi $s3, $s3, '\0'
 
 	# Close the file 
   	li   $v0, 16
@@ -1303,7 +1365,7 @@ _ReadNguoiChoi.read:
 
 	#findlength init
 	li $t0, 0	#bien dem
-	la $s0, ($s3)
+	move $s0, $s3
 
 #Tim do dai chuoi
 FindStrLength:
@@ -1313,11 +1375,11 @@ FindStrLength:
 	bne $t1, '\0' FindStrLength
 
 #process init
-	move $s1, $t0	#$s0 la s length	
-	la $t0, ($s3) #dia chi str
+	move $s1, $t0 #$s0 la s length
+	move $t0, $s3 #dia chi str
 	li $t4, 0 #so luong phan tu
 	li $t1, 0 #bien dem string length
-	la $t2, ($s4) #dia chi arr
+	move $t2, $s4 #dia chi arr
 	li $t5, 10 #nhan 10 moi lan doc 1 ky tu tong diem
 
 	addi $s1, $s1, -1
@@ -1407,12 +1469,12 @@ _SortDiem.CreateIdLoop:
 	move $s4, $s0 # Luu n
 	subi $s0, $s0, 1
 	li $t0, 0 # i = 0
-	la $s1, ($a1) #Luu dia chi a[i]
-	la $s5, ($a2) #Luu dia chi stt a[i]
+	move $s1, $a1 #Luu dia chi a[i]
+	move $s5, $a2 #Luu dia chi stt a[i]
 _SortDiem.Lapi:
 
 	#j = i + 1	
-	la $t1, ($t0)
+	move $t1, $t0
 	addi $t1, $t1, 1
 	# $s2 la dia chi cua a[j]
 	move $s2, $s1
@@ -1507,40 +1569,116 @@ _NguoiChoiInfo:
 	sw $t2, 20($sp)
 	sw $s2, 24($sp)
 	sw $t3, 28($sp)
+	sw $t4, 32($sp)
 
-	la $s0, ($a0) #vi tri can lay thong tin
-	la $s1, ($a1) #dia chi str
-	la $s2, ($a2) #dia chi luu thong tin
+	lw $s0, ($a0) #vi tri can lay thong tin
+	move $s1, $a1 #dia chi str
+	move $s2, $a2 #dia chi luu thong tin
 
 #Than Thu Tuc
 	li $t0, 0 #vi tri hien tai
-	la $t1, ($s1) #dia chi hien tai
-	la $t3, ($s2)
-	lb $t2, ($t1)
+	move $t1, $s1 #dia chi hien tai
+	addi $t1, $t1, 1 #Bo qua dau * dau tien
+	move $t3, $s2 #dia chi string return
+	lb $t2, ($t1) #gia tri tai dia chi file str
+	li $t4, 0 #Danh dau co ton tai vi tri da truyen hay khong
+
+
 _NguoiChoiInfo.Loop:
 	#Neu vi tri hien tai khong phai vi tri can tim thi tiep tuc vong lap
 	bne $t0, $s0, _NguoiChoiInfo.Con
+	li $t4, 1
 	sb $t2, ($t3)
 	addi $t3, $t3, 1
 	addi $t1, $t1, 1
 	lb $t2, ($t1)
+	beq $t2, '\0', _NguoiChoiInfo.Exit
 	bne $t2, '*', _NguoiChoiInfo.Loop
+_NguoiChoiInfo.Exit:
+	li $t0, '\n'
+	sb $t0, ($t3)
 	j _NguoiChoiInfo.Fin
 _NguoiChoiInfo.Con:
 	addi $t1, $t1, 1
 	lb $t2, ($t1)
 	#Neu la dau * thi tang bien dem vi tri len 1
 	beq $t2, '*', _NguoiChoiInfo.Inc
-	bne $t2, '\0', _NguoiChoiInfo.Loop	
+	bne $t2, '\0', _NguoiChoiInfo.Loop
 
 _NguoiChoiInfo.Inc:
 	addi $t0, $t0, 1
 	j _NguoiChoiInfo.Con
 
 _NguoiChoiInfo.Fin:
+	beq $t4, 0, _NguoiChoiInfo.NoIndex
+	li $t0, '\0'
+	addi $t3, $t3, 1
+	sb $t0, ($t3)
+	j _NguoiChoiInfo.Fin1
+
+#Neu khong ton tai vi tri xuat chuoi rong
+_NguoiChoiInfo.NoIndex:
+	li $t0, '\0'
+	sb $t0, ($t3)
+
+_NguoiChoiInfo.Fin1:
 #Cuoi thu tuc
 	#restore thanh ghi
+	lw $t4, 32($sp)
+	lw $t3, 28($sp)
+	lw $s2, 24($sp)
+	lw $t2, 20($sp)
+	lw $s1, 16($sp)
+	lw $t1, 12($sp)
+	lw $t0, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, ($sp)
+	#Xoa stack
+	addi $sp, $sp, 32
+	#quay ve
+	jr $ra
+
+# ===== Ham in top 10 highscore  =====
+_Top10Score:
+#Dau Thu Tuc
+	addi $sp, $sp, -32
+	sw $ra, ($sp)
+	sw $s0, 4($sp)
+	sw $t0, 8($sp)
+	sw $t1, 12($sp)
+	sw $s1, 16($sp)
+	sw $t2, 20($sp)
+	sw $s2, 24($sp)
+	sw $t3, 28($sp)
+
+	move $s0, $a0 #dia chi mang stt
+	move $s1, $a1 #dia chi str
+	lw $t2, ($a3) #So luong mang stt
+
+#Than Thu Tuc
+	li $t0, 0 #vi tri hien tai
 	
+_Top10Score.Loop:
+	
+	lw $t1, ($s0)
+	sw $t1, ($a0)
+	jal _NguoiChoiInfo
+	lb $s2, ($a2)
+
+	beq $s2, '\0', _Top10Score.Fin
+
+	li $v0,4
+	la $a0, ($a2)
+	syscall
+
+	addi $t0, $t0, 1
+	addi $s0, $s0, 4
+	beq $t0, 10, _Top10Score.Fin
+	blt $t0, $t2, _Top10Score.Loop
+
+_Top10Score.Fin:
+#Cuoi thu tuc
+	#restore thanh ghi
 	lw $s2, 24($sp)
 	lw $t3, 28($sp)
 	lw $t2, 20($sp)
@@ -1554,3 +1692,42 @@ _NguoiChoiInfo.Fin:
 	#quay ve
 	jr $ra
 
+# ===== Ham xuat mang =====
+_XuatMang1:
+#Dau Thu Tuc
+	addi $sp, $sp, -8
+	sw $ra, ($sp)
+	sw $s0, 4($sp)
+	sw $t0, 8($sp)
+
+	#Khoi tao
+	move $s0, $a0 #Lay gia tri n
+	li $t0, 0 #i = 0
+#Than Thu Tuc
+
+_XuatMang1.Lap:
+	#In a[i]
+	li $v0, 1
+	lw $a0, ($a1)
+	syscall
+	#In dau cach
+	li $v0, 4
+	la $a0, spc
+	syscall
+
+	#Tang dia chi
+	addi $a1, $a1, 4
+	addi $t0, $t0, 1
+
+	blt $t0, $s0, _XuatMang1.Lap
+
+
+#Cuoi thu tuc
+	#restore thanh ghi
+	lw $t0, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, ($sp)
+	#Xoa stack
+	addi $sp, $sp, 8
+	#quay ve
+	jr $ra
