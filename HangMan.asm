@@ -82,7 +82,11 @@
 	syscall
 
 Begin:
-	
+	#reset lai mang danh dau
+	la $a0,markarr
+	lw $a1,nCauHoi
+	jal _ResetArray
+	#reset lai chuoi string
 	la $a0, CauHoi
 	jal _ResetString
 
@@ -185,6 +189,11 @@ Begin:
 	li $v0,11
 	la $a0,'\n'
 	syscall 
+	#Tinh do dai cau hoi
+	la $a0, CauHoi
+	la $a1, nCauHoi
+	jal _S.length
+	
 MainLoop:
 
 	#Xuong dong
@@ -199,10 +208,7 @@ MainLoop:
 	la $a0,line
 	syscall
 
-	#Tinh do dai cau hoi
-	la $a0, CauHoi
-	la $a1, nCauHoi
-	jal _S.length
+	
 
 	#Kiem tra xem da doan het ky tu chua
 	la $a0,markarr 
@@ -420,7 +426,41 @@ Error7:
 	syscall
 	j _Thongbao.end
 
-
+#============= RESET ARRAY=====================
+#truyen vao mang can reset
+#dau thu tuc
+_ResetArray:
+#dau thu tuc
+	#khoi toa stack
+	addi $sp,$sp,-32
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $t0,12($sp)
+	sw $t1, 16($sp)
+	#Luu tham so vao thanh ghi
+	move $s0, $a0 #markarr
+	move $s1, $a1 #nCauHoi ( truyen gia tri)
+	li $t0,0
+	li $t1,1
+	#Khoi tao vong lap
+#than thu tuc:
+_ResetArray.Loop:
+	sb $t0,4($s0)
+	addi $s0,$s0,1
+	addi $t1,$t1,1
+	ble $t1,$s1,_ResetArray.Loop
+#cuoi thu tuc
+	#restore
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $t0,12($sp)
+	lw $t1, 16($sp)	
+	#xoa stack
+	addi $sp,$sp,32
+	#tra ve
+	jr $ra
 #============================ Reset String ================================
 #Doi so truyen vao la chuoi CauHoi
 _ResetString:
@@ -448,6 +488,7 @@ _ResetString.Loop:
 	lw $s0,4($sp)
 	lw $s1,8($sp)
 	lw $t0,12($sp)
+	
 	#Xia stack
 	addi $sp,$sp,32
 	#tra ve
@@ -898,7 +939,8 @@ _printStr:
 	addi $sp,$sp,32
 	#tra ve
 	jr $ra
-	
+
+
 #============= TINH CHIEU DAI CHUOI ===================
 #Doi so truyen vao la chuoi can tinh do dai va so n
 _S.length:
