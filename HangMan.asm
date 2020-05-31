@@ -560,6 +560,7 @@ _S.Tu.Tangi:
 	addi $s0,$s0,1
 	bne $s2,'\n',_S.Tu.Loop
 
+	addi $t0,$t0,-1
 	sw $t0,($s1)
 #cuoi thu tuc
 	#restore 
@@ -653,9 +654,6 @@ _S.Copy.Loop:
 	lb $s4,($s0)
 	
 	addi $t0,$t0,1
-	bne $s4,'\n',_S.Copy.Check
-	j _Scopy.End
-_S.Copy.Check:
 	bne $s4,'*',_S.Copy.Loop
 	j _Scopy.End
 		
