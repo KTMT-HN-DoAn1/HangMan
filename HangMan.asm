@@ -39,6 +39,7 @@
 	nword:.word 0
 	
 	nScore: .word 0
+	nCauHoi: .word 0
 	
 	Length :.word 0
 	SLTu: .word 0
@@ -198,9 +199,14 @@ MainLoop:
 	la $a0,line
 	syscall
 
+	#Tinh do dai cau hoi
+	la $a0, CauHoi
+	la $a1, nCauHoi
+	jal _S.length
+
 	#Kiem tra xem da doan het ky tu chua
 	la $a0,markarr 
-	lw $a1,n
+	lw $a1,nCauHoi
 	la $a2,check
 	jal _CheckWin
 
