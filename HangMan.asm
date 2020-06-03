@@ -25,6 +25,7 @@
 	tbName1: .asciiz "Ten hop le"
 	tbName2: .asciiz "Ten k hop le, vui long nhap lai ten: "
 	tbTop10: .asciiz "Top 10 diem cao\n"
+	win:.asciiz "BAN DA HOAN THANH XUAT XAC TRO CHOI\nHEN GAP LAI.\n"
 	sao: .asciiz "*"
 	gach: .asciiz "-"
 	spc: .asciiz " "
@@ -57,10 +58,11 @@
 	diem_str: .space 10
 	set_str: .space 10
 
-	indexArr: .space 100
-	foutStr: .space 100
-	scoreArr: .space 100
+	indexArr: .space 500
+	foutStr: .space 2000
+	scoreArr: .space 500
 	tmpStr: .space 100
+	RandomNumArr:.space 100
 .text
 
 	li $v0,4
@@ -104,7 +106,7 @@ Begin:
 	
 	# Doc file --> random --> cat chuoi --> ra de
 	
-		#openfile
+	#openfile
 	li $v0,13
 	la $a0,fin
 	li $a1,0
@@ -143,9 +145,10 @@ Begin:
 #SLTu se luu so luong tu trong str
 
 
-
+	ReRandom:
 	#Load SLTu vao $s0
 	lw $s0,SLTu
+
 	#Random
 	li $v0,42
 	move $a1,$s0
@@ -156,9 +159,20 @@ Begin:
 	addi $s1,$s1,1
 	#Store gia tri cua random vao Random
 	sw $s1,Random
-#Random se luu thu tu cua tu duoc random
-
-
+	#Random se luu thu tu cua tu duoc random
+	#Goi ham kiem tra gia tri random co trung hay khong
+	la $a0,RandomNumArr# truyen vao mang
+	lw $a1,Random#truyen vao so random
+	lw $a2,SLTu#truyen vao so tu = phan tu cua mang
+	la $a3,check#bien kiem tra 
+	jal _FindInt #ham tim gia tri random trong mang
+	lw $a0,check
+	beq $a0,1,ReRandom#Neu kiem tra co trung thi? random lai
+	#goi ham them gia tri vua random duoc vao mang cac gia tri da random
+	la $a0,RandomNumArr
+	lw $a1,Random
+	lw $a2,SLTu
+	jal _SetInt
 
 	#Truyen tham so cho ham tinh vi tri cua dau * ma duoc random
 	la $a0, str
@@ -182,7 +196,10 @@ Begin:
 	jal _S.Copy
 	#Lay CauHoi tra ve
 	
-	
+	li $v0,11
+	la $a0,'\n'
+	syscall
+
 	li $v0,4
 	la $a0,CauHoi
 	syscall
@@ -236,8 +253,6 @@ LoseGame:
 	li $v0,1
 	lw $a0,totalscore
 	syscall 
-
-#Tan <3 Luan
 	#In thong tin nguoi choi
 	la $a0, fout
 	la $a1, nameStr
@@ -292,7 +307,81 @@ Wingame:
 	lw $a0,nword 
 	addi $a0,$a0,1 #nword = nword +1
 	sw $a0,nword 
+	#kiem tra xem nguoi choi da doan het cac tu trong bo de thi hay chua.
+	lw $a0,nword 
+	lw $a1,SLTu
+	beq $a0,$a1,_WinAll
+	j Wingame.Continue
+	_WinAll:
+	#truyen tham so vao ham in diem
+	la $a0, score #truyen diem
+	lw $a1, doansai#truyen so lan doan sai
+	jal PrintResult #goi ham
 	
+	
+	#Cong don diem
+	lw $a0, score
+	lw $a1,totalscore
+	add $a1,$a1,$a0
+	sw $a1,totalscore
+	
+	#xuat danh sach top 10 nguoi choi.
+		#in ra tong cong diem cua nguoi choi qua cac man choi
+	li $v0,4
+	la $a0, printtotal	
+	syscall 
+	li $v0,1
+	lw $a0,totalscore
+	syscall 
+
+	#In thong tin nguoi choi
+	la $a0, fout
+	la $a1, nameStr
+	la $a2, totalscore
+	la $a3, nword
+	la $s5, sao
+	la $s6, gach
+
+	jal _WritePlayerInfo
+
+	#Top 10 highscore
+	#Doc file lay chuoi thong tin cac nguoi choi va tach diem ra mang
+	la $a0, nScore
+	la $a1, foutStr
+	la $a2, scoreArr
+	jal _ReadNguoiChoi
+
+	#Sort diem nguoi choi
+	la $a0, nScore
+	la $a1, scoreArr
+	la $a2, indexArr
+	jal _SortDiem
+
+	#lw $a0, nScore
+	#la $a1, indexArr
+	#jal _XuatMang1
+
+	#In thong bao top 10
+	li $v0,4
+	la $a0, line1	
+	syscall
+	li $v0,4
+	la $a0, tbTop10	
+	syscall  
+
+	#In top 10 diem cao
+	la $a0, indexArr #Mang stt
+	la $a1, foutStr #Chuoi luu ki tu trong file nguoichoi
+	la $a2, tmpStr #Chuoi luu thong tin nguoi choi tai mot thoi diem
+	la $a3, nScore #Mang luu diem so nguoi choi
+	jal _Top10Score
+		#xuat thong bao nguoi choi da thang het tro choi
+		li $v0,4
+		la $a0,win
+		syscall
+		#va thoat chuong trinh
+		j End
+	Wingame.Continue:
 	#truyen tham so vao ham in diem
 	la $a0, score #truyen diem
 	lw $a1, doansai#truyen so lan doan sai
@@ -425,7 +514,102 @@ Error7:
 	la $a0,tb7
 	syscall
 	j _Thongbao.end
-
+#===========SET INT ARRAY ===================
+_SetInt:
+#dau thu tuc
+	addi, $sp,$sp,-40
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $t0,12($sp)
+	sw $t1,16($sp)
+	sw $t2,20($sp)
+	sw $t3,24($sp)
+	sw $t4,28($sp)
+	sw $s2,32($sp)
+	sw $s3,36($sp)
+	
+	#Luu tham so vao thanh ghi
+	move $s0,$a0 #Mang
+	move $s1,$a1 #So can them vao mang
+	move $s2,$a2 #so phan tu cua mang
+	li $t1,0
+_SetInt.Loop:
+	lb $t0,4($s0)
+	beq $t0,0,_SetIntDiff  #neu khac thi chen vo
+	j _SetInt.Inc #nguoc lai thi tang bien va dia chi
+	_SetIntDiff:
+		sb $s1,4($s0)
+		j _SetInt.End
+	_SetInt.Inc:
+		addi $s0,$s0,1
+		addi $t1, $t1,1
+		blt $t1,$s2,_SetInt.Loop
+	_SetInt.End:
+#cuoi thut tuc
+	
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $t0,12($sp)
+	lw $t1,16($sp)
+	lw $t2,20($sp)
+	lw $t3,24($sp)
+	lw $t4,28($sp)
+	lw $s2,32($sp)
+	lw $s3,36($sp)
+	addi, $sp,$sp,40
+	#tra ve
+	jr $ra
+#===========FIND INT ARRAY ===================
+_FindInt:
+#dau thu tuc
+	addi, $sp,$sp,-40
+	sw $ra,($sp)
+	sw $s0,4($sp)
+	sw $s1,8($sp)
+	sw $t0,12($sp)
+	sw $t1,16($sp)
+	sw $t2,20($sp)
+	sw $t3,24($sp)
+	sw $t4,28($sp)
+	sw $s2,32($sp)
+	sw $s3,36($sp)
+	
+	#Luu tham so vao thanh ghi
+	move $s0,$a0 #Mang
+	move $s1,$a1 #So can kiem tra
+	move $s2,$a2 #so phan tu cua mang
+	move $s3, $a3# check
+	li $t1,0
+_FindInt.Loop:
+	lb $t0,4($s0)
+	beq $t0,$s1,_FindIntExist
+	addi $s0,$s0,1
+	addi $t1, $t1,1
+	blt $t1,$s2,_FindInt.Loop
+	#Khong tim thay
+	li $t2 ,0
+	j _FindIntEnd
+	_FindIntExist:
+		li $t2,1
+_FindIntEnd:	
+	sw $t2,($s3)	
+#cuoi thut tuc
+	
+	lw $ra,($sp)
+	lw $s0,4($sp)
+	lw $s1,8($sp)
+	lw $t0,12($sp)
+	lw $t1,16($sp)
+	lw $t2,20($sp)
+	lw $t3,24($sp)
+	lw $t4,28($sp)
+	lw $s2,32($sp)
+	lw $s3,36($sp)
+	addi, $sp,$sp,40
+	#tra ve
+	jr $ra
 #============= RESET ARRAY=====================
 #truyen vao mang can reset
 #dau thu tuc
@@ -1370,7 +1554,7 @@ _Itoa.SaveByte:
 # ===== Ham xu ly diem nguoi choi =====
 _ReadNguoiChoi:
 #Dau Thu Tuc
-	addi $sp, $sp, -44
+	addi $sp, $sp, -48
 	sw $ra, ($sp)
 	sw $s0, 4($sp)
 	sw $t0, 8($sp)
@@ -1478,7 +1662,7 @@ _ReadNguoiChoi.process.con:
 	lw $s0, 4($sp)
 	lw $ra, ($sp)
 	#Xoa stack
-	addi $sp, $sp, 44
+	addi $sp, $sp, 48
 	#quay ve
 	jr $ra
 
@@ -1707,22 +1891,23 @@ _Top10Score:
 	li $t0, 0 #vi tri hien tai
 	
 _Top10Score.Loop:
-	
-	lw $t1, ($s0)
-	sw $t1, ($a0)
+	#Duyet qua mang stt va truyen vao ham lay thong tin nguoi choi tai vi tri bat ky
+	lw $t1, ($s0) #Lay stt tu mang stt
+	sw $t1, ($a0) #truyen stt cho tham so
 	jal _NguoiChoiInfo
-	lb $s2, ($a2)
+	lb $s2, ($a2) #Lay ki tu dau de check
 
+	#Neu la chuoi rong thi ket thuc (khong co stt nay)
 	beq $s2, '\0', _Top10Score.Fin
-
+	#Neu khong in ra chuoi thong tin nguoi choi
 	li $v0,4
 	la $a0, ($a2)
 	syscall
 
-	addi $t0, $t0, 1
-	addi $s0, $s0, 4
-	beq $t0, 10, _Top10Score.Fin
-	blt $t0, $t2, _Top10Score.Loop
+	addi $t0, $t0, 1 #Tang bien dem
+	addi $s0, $s0, 4 #Tang dia chi mang stt
+	beq $t0, 10, _Top10Score.Fin #Neu du 10 nguoi choi thi ngung lai
+	blt $t0, $t2, _Top10Score.Loop #Neu ket thuc mang stt thi ngung lai (neu < 10)
 
 _Top10Score.Fin:
 #Cuoi thu tuc
